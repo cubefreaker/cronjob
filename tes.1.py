@@ -1,12 +1,13 @@
 import os
 import json
 import time
+import shutil
 import schedule
 import requests
+import datetime
 import win32api
 import win32print
 import urllib.request
-from threading import Thread, Event
 from requests.auth import HTTPBasicAuth
 
 
@@ -21,7 +22,7 @@ class printJob:
         url = self.url
         usr = self.usr
         pwd = self.pwd
-        auth = HTTPBasicAuth(usr, pwd)
+        auth = HTTPBasicAuth( usr, pwd)
         response = requests.get(url, auth=auth)
 
         return response.json()
@@ -30,22 +31,20 @@ class printJob:
         url = self.url
         usr = self.usr
         pwd = self.pwd
-        auth = HTTPBasicAuth(usr, pwd)
-        data = json.dumps({"InvNo": Inv, "PrintProcess": status})
-        response = requests.post(url, data=data, auth=auth)
+        auth = HTTPBasicAuth( usr, pwd)
+        data = {"InvNo": Inv, "PrintProcess": status}
 
-        print(response)
+        return requests.post(url, data=json.dumps(data), auth=auth)
 
     def getFile(self, Inv, url):
         self.path = os.path.join(os.getcwd(), 'tempFile')
-
+        
         return urllib.request.urlretrieve(url, self.path + '/{}.pdf'.format(Inv))
 
     def rmFile(self, Inv):
         path = os.path.join(self.path, Inv)
-
-        return os.remove(path + '.pdf')
-
+        
+        return os.remove(path+'.pdf')
 
     def mkDir(self):
         dir = 'tempFile'
@@ -65,76 +64,27 @@ class printJob:
             0
         )
 
-stop_event = Event()
 
-def printChecker():
-    jobs = [1]
-    while jobs:
-        jobs = []
-        for p in win32print.EnumPrinters(win32print.PRINTER_ENUM_CONNECTIONS, None, 1):
+if __name__=='__main__':
 
-            flags, desc, name, comment = p
-
-            phandle = win32print.OpenPrinter(name)
-            print_jobs = win32print.EnumJobs(phandle, 0, -1, 1)
-            if print_jobs:
-                jobs.extend(list(print_jobs))
-            for job in print_jobs:
-                document = job["pDocument"]
-                print("Printing Now: " + document)
-            win32print.ClosePrinter(phandle)
-        time.sleep(5)
-        # Here we make the check if the other thread sent a signal to stop execution.
-        if stop_event.is_set():
-            break
-    print("Done Printing")
-
-if __name__ == '__main__':
-
-    printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189',
-                        '$2y$10$XFSAh4wRcteGhbzXoEEuU./6XWinKmEunDNdqs1/dRX9oylpNJ9da')
-
+    printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189', '$2y$10$XFSAh4wRcteGhbzXoEEuU./6XWinKmEunDNdqs1/dRX9oylpNJ9da')
+    
     printInv.mkDir()
 
-
     def aJob():
-
-        #-- Fetching List File --#
         dataList = printInv.get()
         # print(dataList)
 
         for data in dataList:
-
-            #----------------- Download File -----------------#
             print('Downloading File : ' + data['InvNo'] + '...')
             printInv.getFile(data['InvNo'], data['Link'])
-            print('Done Downloading')
-
-            #------ Print File ------#
-            print('Printing File...')
             printInv.printFile(data['InvNo'])
-
-            #check print status
-            state = Thread(target=printChecker)
-
-            state.start()
-            state.join(timeout=1)
-
-            if state.is_alive():
-                stop_event.set()
-                print('Print Failed')
-                printInv.post(data['InvNo'], 'Failed')
-                continue
-
-            #-------- Posting status -----#
-            print('Posting data')
+            print('Printing File...\n')
             printInv.post(data['InvNo'], 'Success')
-            print('Done Posting\n')
             # print('posting data')
 
         for rmdata in dataList:
             printInv.rmFile(rmdata['InvNo'])
-
 
     aJob()
 
@@ -142,6 +92,11 @@ if __name__ == '__main__':
 
     while True:
         schedule.run_pending()
+
+
+
+
+
 
     # global time_set
 
@@ -155,12 +110,16 @@ if __name__ == '__main__':
 
     #     if time_format != ("1" and "2"):
     #         print("Please input \'1\' or \'2\' only...")
-    #         pickTime()
-
+    #         pickTime()    
+    
     # t_format = "minutes" if time_format == "1" else "hours"
     # time_set = input("\nInput time in {}: ".format(t_format))
-
+        
     # cronJob(time_format, time_set)
+
+
+
+
 
 # def DbConn():
 #     global conn
