@@ -1,13 +1,11 @@
-import os
-import json
-import time
 import schedule
-import requests
 import win32api
 import win32print
 import urllib.request
 from threading import Thread, Event
 from requests.auth import HTTPBasicAuth
+import os, json, time, logging, requests
+
 
 
 class printJob:
@@ -34,7 +32,7 @@ class printJob:
         data = json.dumps({"InvNo": Inv, "PrintProcess": status})
         response = requests.post(url, data=data, auth=auth)
 
-        print(response)
+        return response
 
     def getFile(self, Inv, url):
         self.path = os.path.join(os.getcwd(), 'tempFile')
@@ -84,13 +82,20 @@ def printChecker():
                 print("Printing Now: " + document)
             win32print.ClosePrinter(phandle)
         time.sleep(5)
-        # Here we make the check if the other thread sent a signal to stop execution.
+        # check if the other thread sent a signal to stop execution.
         if stop_event.is_set():
             break
-    print("Done Printing")
+    print("Printing Complete")
+
+logging.basicConfig(filename='print.log', filemode='a', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 if __name__ == '__main__':
 
+    print('APP STARTING...')
+    time.sleep(2)
+
+    print('\nINITIALIZATION')
+    time.sleep(2)
     printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189',
                         '$2y$10$XFSAh4wRcteGhbzXoEEuU./6XWinKmEunDNdqs1/dRX9oylpNJ9da')
 
@@ -99,38 +104,40 @@ if __name__ == '__main__':
 
     def aJob():
 
-        #-- Fetching List File --#
+        # -- Fetching List File -- #
+        print('\nFETCHING FILE FROM SERVER')
         dataList = printInv.get()
         # print(dataList)
 
         for data in dataList:
 
-            #----------------- Download File -----------------#
-            print('Downloading File : ' + data['InvNo'] + '...')
+            # ----------------- Download File ----------------- #
+            print('\nDownloading File : ' + data['InvNo'] + '...')
             printInv.getFile(data['InvNo'], data['Link'])
-            print('Done Downloading')
+            print('Download Complete')
 
-            #------ Print File ------#
-            print('Printing File...')
+            # ------ Print File ------ #
+            print('\nPrinting File...')
             printInv.printFile(data['InvNo'])
 
-            #check print status
+            # check print status
             state = Thread(target=printChecker)
 
             state.start()
-            state.join(timeout=1)
+            # set timeout
+            state.join(timeout=60)
 
             if state.is_alive():
                 stop_event.set()
-                print('Print Failed')
+                print('TIME OUT: Print Failed')
                 printInv.post(data['InvNo'], 'Failed')
+                logging.warning('Print failed on invoice %s - Time Out ', data['InvNo'])
                 continue
 
-            #-------- Posting status -----#
-            print('Posting data')
+            # -------- Posting status ----- #
+            # print('Posting data')
             printInv.post(data['InvNo'], 'Success')
-            print('Done Posting\n')
-            # print('posting data')
+            # print('Done Posting\n')
 
         for rmdata in dataList:
             printInv.rmFile(rmdata['InvNo'])
@@ -142,38 +149,3 @@ if __name__ == '__main__':
 
     while True:
         schedule.run_pending()
-
-    # global time_set
-
-    # print("*********************************")
-    # print("Welcome to scheduled printing app")
-    # print("*********************************")
-    # time.sleep(2)
-    # def pickTime():
-    #     global time_format
-    #     time_format = input("\nPick a schedule format:\n[1] In Minutes\n[2] In Hours\n\n>> ")
-
-    #     if time_format != ("1" and "2"):
-    #         print("Please input \'1\' or \'2\' only...")
-    #         pickTime()
-
-    # t_format = "minutes" if time_format == "1" else "hours"
-    # time_set = input("\nInput time in {}: ".format(t_format))
-
-    # cronJob(time_format, time_set)
-
-# def DbConn():
-#     global conn
-#     global cursor
-#     global date
-#     conn = pymysql.connect(
-#         host='mysql.opsigo.id',
-#         user='SupportQa',
-#         password='cbc726de6accda94ba7e56d2768d9d68',
-#         db='Qa_1_Db',
-#         port=7706
-#     )
-#     timestamp = time.time()
-#     # date1 = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-#     date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-#     cursor = conn.cursor()

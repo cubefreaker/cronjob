@@ -8,25 +8,28 @@ def print_job_checker():
     Prints out all jobs in the print queue every 5 seconds
     """
     jobs = [1]
-    while jobs:
-        jobs = []
-        for p in win32print.EnumPrinters(win32print.PRINTER_ENUM_CONNECTIONS, None, 1):
+    try:
+        while jobs:
+            jobs = []
+            for p in win32print.EnumPrinters(win32print.PRINTER_ENUM_CONNECTIONS, None, 1):
 
-            flags, desc, name, comment = p
+                flags, desc, name, comment = p
 
-            phandle = win32print.OpenPrinter(name)
-            print_jobs = win32print.EnumJobs(phandle, 0, -1, 1)
-            if print_jobs:
-                jobs.extend(list(print_jobs))
-            for job in print_jobs:
-                # print("printer name => " + name)
-                document = job["pDocument"]
-                print("Printing now: " + document)
-            win32print.ClosePrinter(phandle)
+                phandle = win32print.OpenPrinter(name)
+                print_jobs = win32print.EnumJobs(phandle, 0, -1, 1)
+                if print_jobs:
+                    jobs.extend(list(print_jobs))
+                for job in print_jobs:
+                    # print("printer name => " + name)
+                    document = job["pDocument"]
+                    print("Printing now: " + document)
+                win32print.ClosePrinter(phandle)
 
-        time.sleep(10)
-    print("No more jobs!")
+            time.sleep(10)
+        print("No more jobs!")
+    except KeyboardInterrupt:
 
+        pass
 
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
