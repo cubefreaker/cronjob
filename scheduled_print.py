@@ -87,6 +87,26 @@ def printChecker():
             break
     print("Printing Complete")
 
+def cancelPrint():
+    jobs=[1]
+    while jobs:
+        jobs = []
+        for p in win32print.EnumPrinters(win32print.PRINTER_ENUM_CONNECTIONS, None, 1):
+
+            flags, desc, name, comment = p
+
+            phandle = win32print.OpenPrinter(name)
+            print_jobs = win32print.EnumJobs(phandle, 0, -1, 1)
+            if print_jobs:
+                jobs.extend(list(print_jobs))
+            for job in print_jobs:
+                win32print.SetJob(phandle, win32print.AddJob(phandle)[1], 0, None, win32print.JOB_CONTROL_DELETE)
+                document = job["pDocument"]
+                print("Canceling Print: " + document)
+            win32print.ClosePrinter(phandle)
+        time.sleep(5)
+
+
 logging.basicConfig(filename='print.log', filemode='a', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 if __name__ == '__main__':
@@ -99,11 +119,22 @@ if __name__ == '__main__':
     printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189',
                         '$2y$10$XFSAh4wRcteGhbzXoEEuU./6XWinKmEunDNdqs1/dRX9oylpNJ9da')
 
-    printInv.mkDir()
+    printInv.mkDir
+	
+    def timeSec():
+	    global val
+	    sec = input('\nInput time schedule (in minutes): ')
+	    if sec.isdigit() == True:
+	        val = sec
+	    else:
+		    print('\nPlease input in numerical format...')
+		    timeSec
+	
+    timeSec()
 
 
     def aJob():
-
+        global identifier
         # -- Fetching List File -- #
         print('\nFETCHING FILE FROM SERVER')
         dataList = printInv.get()
@@ -112,32 +143,46 @@ if __name__ == '__main__':
         for data in dataList:
 
             # ----------------- Download File ----------------- #
-            print('\nDownloading File : ' + data['InvNo'] + '...')
+            print('\nDownloading File : ' + data['InvNo'])
             printInv.getFile(data['InvNo'], data['Link'])
             print('Download Complete')
 
-            # ------ Print File ------ #
-            print('\nPrinting File...')
-            printInv.printFile(data['InvNo'])
+            identifier = 1
+            def printFix():
+                global identifier
+                # ------ Print File ------ #
+                print('\nPrinting File...')
+                #printInv.printFile(data['InvNo'])
 
-            # check print status
-            state = Thread(target=printChecker)
+                # check print status
+                state = Thread(target=printChecker)
 
-            state.start()
-            # set timeout
-            state.join(timeout=60)
+                state.start()
+                # set timeout
+                state.join(timeout=15)
 
-            if state.is_alive():
-                stop_event.set()
-                print('TIME OUT: Print Failed')
-                printInv.post(data['InvNo'], 'Failed')
-                logging.warning('Print failed on invoice %s - Time Out ', data['InvNo'])
-                continue
+                if state.is_alive():
+                    stop_event.set()
+                    if identifier < 3:
+                        identifier = identifier + 1
+                        printFix()
+                    else:
+                        cancelPrint()
+                        print('TIME OUT: Print Failed')
+                        printInv.post(data['InvNo'], 'Failed')
+                        logging.warning('Print failed on invoice %s - Time Out ', data['InvNo'])
+                        return False
 
-            # -------- Posting status ----- #
-            # print('Posting data')
-            printInv.post(data['InvNo'], 'Success')
-            # print('Done Posting\n')
+                return True
+
+            if printFix() == True:
+                # -------- Posting status ----- #
+                print('Posting data')
+                printInv.post(data['InvNo'], 'Success')
+                print('Done Posting\n')
+            else:
+                break
+
 
         for rmdata in dataList:
             printInv.rmFile(rmdata['InvNo'])
@@ -145,7 +190,7 @@ if __name__ == '__main__':
 
     aJob()
 
-    schedule.every(10).minutes.do(aJob)
+    schedule.every(val).minutes.do(aJob)
 
     while True:
         schedule.run_pending()
