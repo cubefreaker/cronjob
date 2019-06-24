@@ -118,9 +118,47 @@ if __name__ == '__main__':
     time.sleep(2)
     printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189',
                         '$2y$10$XFSAh4wRcteGhbzXoEEuU./6XWinKmEunDNdqs1/dRX9oylpNJ9da')
-
-    printInv.mkDir
+    
+    
+    printInv.mkDir()
 	
+    def branchSelect():
+	    global branchCode 
+	    print('\n--Branch List--\n')
+	    print('1. CCC Surabaya\n')
+	    print('2. CCC Balikpapan\n')
+	    print('3. CC\n')
+	    print('4. CCC 2\n')
+	    print('5. CCC 1\n')
+	    print('6. Global Corporate\n')
+	    print('7. CCC Makassar\n')
+	    print('8. Implant\n')
+	    branch = input('\nSelect branch (input number only): \n')
+		
+	    if branch in ['1','2','3','4','5','6','7','8']:
+	    	if branch == '1':
+	    		branchCode = '013'
+	    	elif branch == '2':
+	    		branchCode = '015'
+	    	elif branch == '3':
+	    		branchCode = '051'
+	    	elif branch == '4':
+	    		branchCode = '052'
+	    	elif branch == '5':
+	    		branchCode = '054'
+	    	elif branch == '6':
+        		branchCode = '055'
+    		elif branch == '7':
+	    		branchCode = '057'
+	    	elif branch == '8':
+	    		branchCode = '300'
+	    	else:
+	    		print('\nInput unrecognized')
+	    		branchSelect()
+	    else:
+	    	print('\nPlease input only number from above list...\n')
+	    	branchSelect()
+    
     def timeSec():
 	    global val
 	    sec = input('\nInput time schedule (in minutes): ')
@@ -130,6 +168,7 @@ if __name__ == '__main__':
 		    print('\nPlease input in numerical format...')
 		    timeSec
 	
+    branchSelect()
     timeSec()
 
 
@@ -137,7 +176,13 @@ if __name__ == '__main__':
         global identifier
         # -- Fetching List File -- #
         print('\nFETCHING FILE FROM SERVER')
-        dataList = printInv.get()
+        dataList = []
+        branch = '-'+branchCode+'-'
+        for data in printInv.get():
+            if branch in data['InvNo']:
+                dataList.append(data)
+            else:
+                pass
         # print(dataList)
 
         for data in dataList:
@@ -152,7 +197,7 @@ if __name__ == '__main__':
                 global identifier
                 # ------ Print File ------ #
                 print('\nPrinting File...')
-                #printInv.printFile(data['InvNo'])
+                printInv.printFile(data['InvNo'])
 
                 # check print status
                 state = Thread(target=printChecker)
@@ -190,7 +235,7 @@ if __name__ == '__main__':
 
     aJob()
 
-    schedule.every(val).minutes.do(aJob)
+    schedule.every(int(val)).minutes.do(aJob)
 
     while True:
         schedule.run_pending()
