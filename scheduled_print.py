@@ -4,7 +4,7 @@ import win32print
 import urllib.request
 from threading import Thread, Event
 from requests.auth import HTTPBasicAuth
-import os, json, time, logging, requests
+import os, json, time, logging, requests, sqlite3
 
 
 
@@ -114,6 +114,9 @@ if __name__ == '__main__':
     print('APP STARTING...')
     time.sleep(2)
 
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+
     print('\nINITIALIZATION')
     time.sleep(2)
     printInv = printJob('https://antavaya.opsifin.com/opsifin_api_print', 'anv-ops189',
@@ -122,68 +125,21 @@ if __name__ == '__main__':
     
     printInv.mkDir()
 	
-    def branchSelect():
-	    global branchCode 
-	    print('\n--Branch List--\n')
-	    print('1. CCC Surabaya\n')
-	    print('2. CCC Balikpapan\n')
-	    print('3. CC\n')
-	    print('4. CCC 2\n')
-	    print('5. CCC 1\n')
-	    print('6. Global Corporate\n')
-	    print('7. CCC Makassar\n')
-	    print('8. Implant\n')
-	    branch = input('\nSelect branch (input number only): \n')
-		
-	    if branch in ['1','2','3','4','5','6','7','8']:
-	    	if branch == '1':
-	    		branchCode = '013'
-	    	elif branch == '2':
-	    		branchCode = '015'
-	    	elif branch == '3':
-	    		branchCode = '051'
-	    	elif branch == '4':
-	    		branchCode = '052'
-	    	elif branch == '5':
-	    		branchCode = '054'
-	    	elif branch == '6':
-        		branchCode = '055'
-    		elif branch == '7':
-	    		branchCode = '057'
-	    	elif branch == '8':
-	    		branchCode = '300'
-	    	else:
-	    		print('\nInput unrecognized')
-	    		branchSelect()
-	    else:
-	    	print('\nPlease input only number from above list...\n')
-	    	branchSelect()
-    
-    def timeSec():
-	    global val
-	    sec = input('\nInput time schedule (in minutes): ')
-	    if sec.isdigit() == True:
-	        val = sec
-	    else:
-		    print('\nPlease input in numerical format...')
-		    timeSec()
-	
-    branchSelect()
-    timeSec()
-
-
     def aJob():
         global identifier
         # -- Fetching List File -- #
         print('\nFETCHING FILE FROM SERVER')
         dataList = []
-        branch = '-'+branchCode+'-'
+        # branch = '-'+branchCode+'-'
         for data in printInv.get():
-            if branch in data['InvNo']:
-                dataList.append(data)
-            else:
-                pass
-        # print(dataList)
+            for row in c.execute('SELECT branchCode FROM settings where isChecked="1"'):
+                branch = '-'+row[0]+'-'
+                if branch in data['InvNo']:
+                    dataList.append(data)
+                else:
+                    pass
+        #print(dataList)
+	#time.sleep(10000)
 
         for data in dataList:
 
@@ -235,6 +191,8 @@ if __name__ == '__main__':
 
     aJob()
 
+    c.execute('SELECT timeSet FROM time where id=1')
+    val = c.fetchone()[0]
     schedule.every(int(val)).minutes.do(aJob)
 
     while True:
