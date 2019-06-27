@@ -166,7 +166,7 @@ if __name__ == '__main__':
 	        val = sec
 	    else:
 		    print('\nPlease input in numerical format...')
-		    timeSec
+		    timeSec()
 	
     branchSelect()
     timeSec()
