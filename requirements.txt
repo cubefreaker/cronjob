@@ -6,7 +6,7 @@ idna==2.8
 macholib==1.11
 Nuitka==0.6.2
 pefile==2018.8.8
-pywin32==224
+pywin32==301
 pywin32-ctypes==0.2.0
 requests==2.21.0
 schedule==0.6.0
